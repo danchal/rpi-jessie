@@ -13,7 +13,7 @@ case "$1" in
   start)
     log_daemon_msg "Starting rpi-resize2fs" &&
     resize2fs /dev/mmcblk0p2 &&
-    service rpi-resize2fs.service remove &&
+    systemctl disable rpi-resize2fs.service &&
     log_end_msg $?
     ;;
   *)

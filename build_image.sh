@@ -8,13 +8,15 @@
 # you need at least
 # apt-get install binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools
 
-deb_mirror="http://ftp.nl.debian.org/debian"
+DEB_MIRROR="http://deb.debian.org"
+DEB_MIRROR_BUILD=${DEB_MIRROR_BUILD:=DEB_MIRROR}
 
 # Image size in Mb
 imagesize="1000"
 # Boot partition size
 bootsize="64M"
-deb_release="jessie"
+deb_release="stretch"
+DEB_ARCH=${DEB_ARCH:=armhf}
 
 scriptroot=$(pwd)
 # Build root
@@ -33,12 +35,13 @@ if [ $EUID -ne 0 ]; then
   exit 1
 fi
 
-# If $1 is block device
-if [ -b $1 ]; then
-  device=$1
+# If no block device or image supplied
+if [ "$1" == "" ]; then
+  image="$(pwd)/rpi_debian_${DEB_ARCH}_${deb_release}_${mydate}.img"
 else
-  if [ "$1" == "" ]; then
-    image="$(pwd)/rpi_basic_${deb_release}_${mydate}.img"
+  # If $1 is block device
+  if [ -b $1 ]; then
+    device=$1
   else
     image=$1
     if [ -f $image ]; then
@@ -115,16 +118,16 @@ cd $rootfs
 
 echo "Bootstrapping the image"
 
-debootstrap --foreign --arch armel $deb_release $rootfs $deb_mirror
+debootstrap --foreign --arch $DEB_ARCH $deb_release $rootfs ${DEB_MIRROR_BUILD}/debian
 cp /usr/bin/qemu-arm-static usr/bin/
 LANG=C chroot $rootfs /debootstrap/debootstrap --second-stage
 
 mount $bootp $bootfs
 
-echo "deb $deb_mirror $deb_release main contrib non-free
+echo "deb ${DEB_MIRROR}/debian $deb_release main contrib non-free
 " > etc/apt/sources.list
 
-echo "dwc_otg.lpm_enable=0 console=ttyAMA0,115200 kgdboc=ttyAMA0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 rootwait" > boot/cmdline.txt
+echo "dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait" > boot/cmdline.txt
 
 echo "/dev/mmcblk0p2  /		ext4    noatime        0       0
 proc            /proc           proc    defaults        0       0
