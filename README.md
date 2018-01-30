@@ -29,8 +29,7 @@ The script accepts shell-variables to configure specific features during build.
 E.g.
 
 ```
-sudo DEB_MIRROR_BUILD="http://ftp.cz.debian.org" ./build_image.sh
-sudo DEB_MIRROR_BUILD="http://yourproxy:port/ftp.cz.debian.org" ./build_image.sh
+sudo BUILD_HTTP_PROXY="yourproxy:port" ./build_image.sh
 sudo DEB_ARCH="armhf" ./build_image.sh
 sudo DEB_ARCH="armel" ./build_image.sh
 ```

@@ -8,8 +8,8 @@
 # you need at least
 # apt-get install binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools
 
-DEB_MIRROR="http://deb.debian.org"
-DEB_MIRROR_BUILD=${DEB_MIRROR_BUILD:=DEB_MIRROR}
+DEB_MIRROR="deb.debian.org"
+DEB_MIRROR_BUILD="http://${BUILD_HTTP_PROXY:+${BUILD_HTTP_PROXY}/}${DEB_MIRROR}"
 
 # Image size in Mb
 imagesize="1000"
@@ -124,8 +124,11 @@ LANG=C chroot $rootfs /debootstrap/debootstrap --second-stage
 
 mount $bootp $bootfs
 
-echo "deb ${DEB_MIRROR}/debian $deb_release main contrib non-free
+echo "deb http://${DEB_MIRROR}/debian $deb_release main contrib non-free
 " > etc/apt/sources.list
+
+[ -n "${BUILD_HTTP_PROXY}" ] && echo "Acquire::http::Proxy \"http://${BUILD_HTTP_PROXY}/\";
+" > etc/apt/apt.conf.d/02buildproxy
 
 echo "dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait" > boot/cmdline.txt
 
@@ -154,8 +157,10 @@ console-common	console-data/keymap/full	select	de-latin1-nodeadkeys
 cp -R ${scripts}/* .
 
 mkdir -m 700 root/.ssh
-cat $(scriptroot)/id_rsa.pub > root/.ssh/authorized_keys
-chmod 600 root/.ssh/authorized_keys
+if [ -f "${scriptroot}/id_rsa.pub" ] ; then
+    cat "${scriptroot}/id_rsa.pub" > root/.ssh/authorized_keys
+    chmod 600 root/.ssh/authorized_keys
+fi
 echo "root:raspberry" | chpasswd
 
 echo "#!/bin/bash
@@ -183,6 +188,7 @@ rm -f cleanup
 service ntp stop
 service ssh stop
 systemctl enable rpi-firstrun.service
+rm -f /etc/apt/apt.conf.d/02buildproxy
 " > cleanup
 chmod +x cleanup
 LANG=C chroot $rootfs /cleanup
