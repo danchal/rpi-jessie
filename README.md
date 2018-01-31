@@ -29,9 +29,10 @@ The script accepts shell-variables to configure specific features during build.
 E.g.
 
 ```
-sudo BUILD_HTTP_PROXY="yourproxy:port" ./build_image.sh
+sudo DEB_MIRROR_BUILD="http://yourproxy:port/deb.debian.org" ./build_image.sh
+sudo DEB_MIRROR_BUILD="http://deb.debian.org" ./build_image.sh
+sudo DEB_RELEASE="stretch" ./build_image.sh
 sudo DEB_ARCH="armhf" ./build_image.sh
-sudo DEB_ARCH="armel" ./build_image.sh
 ```
 
 root password is ```raspberry```

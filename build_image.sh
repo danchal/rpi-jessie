@@ -8,15 +8,17 @@
 # you need at least
 # apt-get install binfmt-support qemu qemu-user-static debootstrap kpartx lvm2 dosfstools
 
-DEB_MIRROR="deb.debian.org"
-DEB_MIRROR_BUILD="http://${BUILD_HTTP_PROXY:+${BUILD_HTTP_PROXY}/}${DEB_MIRROR}"
+DEB_MIRROR="http://deb.debian.org"
+DEB_MIRROR_BUILD="${DEB_MIRROR_BUILD:=${DEB_MIRROR}}"
 
 # Image size in Mb
 imagesize="1000"
 # Boot partition size
 bootsize="64M"
-deb_release="stretch"
+deb_release="${DEB_RELEASE:=stretch}"
 DEB_ARCH=${DEB_ARCH:=armhf}
+
+echo "Using: DEB_MIRROR_BUILD<${DEB_MIRROR_BUILD}>, deb_release<${deb_release}>, DEB_ARCH<${DEB_ARCH}>"
 
 scriptroot=$(pwd)
 # Build root
@@ -124,11 +126,8 @@ LANG=C chroot $rootfs /debootstrap/debootstrap --second-stage
 
 mount $bootp $bootfs
 
-echo "deb http://${DEB_MIRROR}/debian $deb_release main contrib non-free
+echo "deb ${DEB_MIRROR_BUILD}/debian $deb_release main contrib non-free
 " > etc/apt/sources.list
-
-[ -n "${BUILD_HTTP_PROXY}" ] && echo "Acquire::http::Proxy \"http://${BUILD_HTTP_PROXY}/\";
-" > etc/apt/apt.conf.d/02buildproxy
 
 echo "dwc_otg.lpm_enable=0 console=serial0,115200 console=tty1 root=/dev/mmcblk0p2 rootfstype=ext4 elevator=deadline fsck.repair=yes rootwait" > boot/cmdline.txt
 
@@ -156,23 +155,19 @@ console-common	console-data/keymap/full	select	de-latin1-nodeadkeys
 
 cp -R ${scripts}/* .
 
-mkdir -m 700 root/.ssh
-if [ -f "${scriptroot}/id_rsa.pub" ] ; then
-    cat "${scriptroot}/id_rsa.pub" > root/.ssh/authorized_keys
-    chmod 600 root/.ssh/authorized_keys
-fi
 echo "root:raspberry" | chpasswd
 
 echo "#!/bin/bash
 debconf-set-selections /debconf.set
 rm -f /debconf.set
-apt-get update 
+apt-get update
 apt-get -y install git-core binutils ca-certificates wget curl
 wget https://raw.githubusercontent.com/Hexxeh/rpi-update/master/rpi-update -O /usr/bin/rpi-update
 chmod +x /usr/bin/rpi-update
 UPDATE_SELF=0 SKIP_BACKUP=1 /usr/bin/rpi-update
-apt-get -y install locales console-common ntp openssh-server less vim parted
+apt-get -y install locales console-common ntp openssh-server less vim parted avahi-daemon
 sed -i -e 's/KERNEL\!=\"eth\*|/KERNEL\!=\"/' /lib/udev/rules.d/75-persistent-net-generator.rules
+sed -i -e 's/^#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
 rm -f /etc/udev/rules.d/70-persistent-net.rules
 rm -f third-stage
 " > third-stage
@@ -188,10 +183,15 @@ rm -f cleanup
 service ntp stop
 service ssh stop
 systemctl enable rpi-firstrun.service
-rm -f /etc/apt/apt.conf.d/02buildproxy
 " > cleanup
 chmod +x cleanup
 LANG=C chroot $rootfs /cleanup
+
+# if build http proxy used then remove it from image source
+if [ "$DEB_MIRROR" != "$DEB_MIRROR_BUILD" ] ; then
+    echo "deb ${DEB_MIRROR}/debian $deb_release main contrib non-free
+    " > etc/apt/sources.list
+fi
 
 cd -
 
